@@ -3,6 +3,20 @@ import { validateCandidateData } from '../validator';
 import { Education } from '../../domain/models/Education';
 import { WorkExperience } from '../../domain/models/WorkExperience';
 import { Resume } from '../../domain/models/Resume';
+import { Application } from '../../domain/models/Application';
+import { InterviewStep } from '../../domain/models/InterviewStep';
+
+export interface UpdateCandidateStageRequest {
+    interviewStepId: number;
+}
+
+export interface UpdateCandidateStageResponse {
+    applicationId: number;
+    candidateId: number;
+    positionId: number;
+    previousInterviewStep: string;
+    currentInterviewStep: string;
+}
 
 export const addCandidate = async (candidateData: any) => {
     try {
@@ -61,5 +75,53 @@ export const findCandidateById = async (id: number): Promise<Candidate | null> =
     } catch (error) {
         console.error('Error al buscar el candidato:', error);
         throw new Error('Error al recuperar el candidato');
+    }
+};
+
+export const updateCandidateStage = async (
+    candidateId: number,
+    payload: UpdateCandidateStageRequest,
+): Promise<UpdateCandidateStageResponse> => {
+    try {
+        const candidate = await Candidate.findOne(candidateId);
+        if (!candidate) {
+            throw new Error('Candidate not found');
+        }
+
+        const interviewStep = await InterviewStep.findOne(payload.interviewStepId);
+        if (!interviewStep) {
+            throw new Error('Interview step not found');
+        }
+
+        const application = await Application.findByCandidateId(candidateId);
+        if (!application) {
+            throw new Error('Application not found');
+        }
+
+        const previousInterviewStep = application.interviewStep.name;
+
+        const updatedApplication = await Application.updateCurrentInterviewStep(
+            application.id,
+            payload.interviewStepId,
+        );
+
+        return {
+            applicationId: updatedApplication.id,
+            candidateId: updatedApplication.candidateId,
+            positionId: updatedApplication.positionId,
+            previousInterviewStep,
+            currentInterviewStep: updatedApplication.interviewStep.name,
+        };
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            (error.message === 'Candidate not found' ||
+                error.message === 'Interview step not found' ||
+                error.message === 'Application not found')
+        ) {
+            throw error;
+        }
+        console.error('Error al actualizar la etapa del candidato:', error);
+        throw new Error('Error al actualizar la etapa del candidato');
     }
 };

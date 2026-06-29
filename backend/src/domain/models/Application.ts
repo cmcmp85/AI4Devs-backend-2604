@@ -50,4 +50,56 @@ export class Application {
         if (!data) return null;
         return new Application(data);
     }
+
+    static async findByPositionId(positionId: number): Promise<ApplicationWithCandidates[]> {
+        return prisma.application.findMany({
+            where: { positionId },
+            include: {
+                candidate: { select: { firstName: true, lastName: true } },
+                interviewStep: { select: { name: true } },
+                interviews: { select: { score: true } },
+            },
+            orderBy: { applicationDate: 'asc' },
+        });
+    }
+
+    static async findByCandidateId(candidateId: number): Promise<ApplicationWithStage | null> {
+        return prisma.application.findFirst({
+            where: { candidateId },
+            orderBy: { applicationDate: 'desc' },
+            include: {
+                interviewStep: { select: { id: true, name: true, orderIndex: true } },
+                position: { select: { id: true, title: true, interviewFlowId: true } },
+            },
+        });
+    }
+
+    static async updateCurrentInterviewStep(
+        applicationId: number,
+        interviewStepId: number,
+    ): Promise<ApplicationWithStage> {
+        return prisma.application.update({
+            where: { id: applicationId },
+            data: { currentInterviewStep: interviewStepId },
+            include: {
+                interviewStep: { select: { id: true, name: true, orderIndex: true } },
+                position: { select: { id: true, title: true, interviewFlowId: true } },
+            },
+        });
+    }
+}
+
+export interface ApplicationWithCandidates {
+    candidate: { firstName: string; lastName: string };
+    interviewStep: { name: string };
+    interviews: { score: number | null }[];
+}
+
+export interface ApplicationWithStage {
+    id: number;
+    candidateId: number;
+    positionId: number;
+    currentInterviewStep: number;
+    interviewStep: { id: number; name: string; orderIndex: number };
+    position: { id: number; title: string; interviewFlowId: number };
 }
